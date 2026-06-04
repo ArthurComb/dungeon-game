@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tree Thought Canvas</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --line: #cbd5e1;
+      --panel: rgba(255, 255, 255, 0.88);
+      --panel-solid: #ffffff;
+      --node: #e5e7eb;
+      --node-border: #b8bec9;
+      --accent: #14b8a6;
+      --accent-dark: #0f766e;
+      --shadow: 0 24px 80px rgba(15, 23, 42, 0.18);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 80% 5%, rgba(253, 224, 71, 0.75), transparent 24rem),
+        radial-gradient(circle at 0% 15%, rgba(34, 211, 238, 0.8), transparent 28rem),
+        linear-gradient(135deg, #0ea5e9 0%, #bae6fd 46%, #f8fafc 100%);
+      overflow: hidden;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(17rem, 21rem) 1fr;
+      gap: 1rem;
+      height: 100vh;
+      padding: 1rem;
+    }
+
+    aside,
+    main {
+      border: 1px solid rgba(255, 255, 255, 0.62);
+      background: var(--panel);
+      backdrop-filter: blur(22px);
+      box-shadow: var(--shadow);
+    }
+
+    aside {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1rem;
+      border-radius: 1.35rem;
+      overflow: auto;
+    }
+
+    main {
+      position: relative;
+      border-radius: 2rem;
+      overflow: hidden;
+    }
+
+    h1,
+    h2,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(1.45rem, 2vw, 2.25rem);
+      line-height: 1.04;
+      letter-spacing: -0.045em;
+    }
+
+    h2 {
+      margin-bottom: 0.55rem;
+      font-size: 0.74rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .intro {
+      color: #475569;
+      font-size: 0.93rem;
+      line-height: 1.45;
+    }
+
+    .tool-card {
+      padding: 0.85rem;
+      border: 1px solid rgba(203, 213, 225, 0.8);
+      border-radius: 1rem;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.5rem;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      border-radius: 0.78rem;
+      padding: 0.72rem 0.8rem;
+      color: var(--ink);
+      background: #f8fafc;
+      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.35);
+      cursor: pointer;
+      transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.6), 0 8px 22px rgba(15, 23, 42, 0.12);
+    }
+
+    button.primary {
+      color: #ffffff;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+      box-shadow: 0 12px 24px rgba(15, 118, 110, 0.28);
+    }
+
+    label {
+      display: grid;
+      gap: 0.35rem;
+      margin-top: 0.72rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #334155;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 0.75rem;
+      padding: 0.67rem 0.75rem;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.86);
+      outline: none;
+    }
+
+    textarea {
+      min-height: 5.4rem;
+      resize: vertical;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.14);
+    }
+
+    .hint-list {
+      display: grid;
+      gap: 0.45rem;
+      padding-left: 1.1rem;
+      margin: 0;
+      color: #475569;
+      font-size: 0.86rem;
+      line-height: 1.35;
+    }
+
+    .canvas-shell {
+      position: absolute;
+      inset: 1.25rem;
+      border: 1px solid rgba(203, 213, 225, 0.82);
+      border-radius: 1.55rem;
+      background:
+        linear-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+        #f8fafc;
+      background-size: 36px 36px;
+      overflow: hidden;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .link {
+      stroke: var(--line);
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+
+    .node-ring {
+      fill: #d1d5db;
+      stroke: var(--node-border);
+      stroke-width: 2;
+      filter: drop-shadow(0 8px 8px rgba(100, 116, 139, 0.18));
+    }
+
+    .node.selected .node-ring {
+      fill: #99f6e4;
+      stroke: var(--accent-dark);
+      stroke-width: 3;
+    }
+
+    .node text {
+      fill: #4b5563;
+      font-size: 18px;
+      font-weight: 600;
+      paint-order: stroke;
+      stroke: rgba(248, 250, 252, 0.9);
+      stroke-width: 5px;
+      stroke-linejoin: round;
+    }
+
+    .node .note {
+      fill: #64748b;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .floating-tools {
+      position: absolute;
+      right: 2rem;
+      top: 2rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .zoom-tools {
+      position: absolute;
+      right: 2rem;
+      bottom: 2rem;
+      display: flex;
+      overflow: hidden;
+      border-radius: 1rem;
+      box-shadow: 0 14px 36px rgba(15, 23, 42, 0.16);
+    }
+
+    .zoom-tools button,
+    .floating-tools button {
+      min-width: 3rem;
+      border-radius: 0;
+      font-size: 1.2rem;
+      font-weight: 800;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .floating-tools button {
+      border-radius: 999px;
+    }
+
+    .status-pill {
+      position: absolute;
+      left: 2rem;
+      bottom: 2rem;
+      max-width: min(34rem, calc(100% - 4rem));
+      padding: 0.82rem 1rem;
+      border-radius: 999px;
+      color: #334155;
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: 0 14px 36px rgba(15, 23, 42, 0.12);
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 860px) {
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: 100vh;
+      }
+
+      main {
+        min-height: 70vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside aria-label="Map controls">
+      <section>
+        <h1>Tree Thought Canvas</h1>
+        <p class="intro">Build a branching knowledge map while you think. Add ideas, connect them, drag clusters around, and keep notes attached to each node.</p>
+      </section>
+
+      <section class="tool-card">
+        <h2>Selected idea</h2>
+        <label>
+          Title
+          <input id="node-title" maxlength="64" />
+        </label>
+        <label>
+          Note
+          <textarea id="node-note" maxlength="180"></textarea>
+        </label>
+      </section>
+
+      <section class="tool-card">
+        <h2>Actions</h2>
+        <div class="button-grid">
+          <button class="primary" id="add-child">Add child</button>
+          <button id="add-sibling">Add sibling</button>
+          <button id="delete-node">Delete</button>
+          <button id="reset-map">Reset</button>
+        </div>
+      </section>
+
+      <section class="tool-card">
+        <h2>How to use</h2>
+        <ul class="hint-list">
+          <li>Click a node to edit its title and note.</li>
+          <li>Drag nodes to reshape your idea tree.</li>
+          <li>Use <strong>Add child</strong> to branch from the selected thought.</li>
+          <li>Zoom with the bottom-right controls.</li>
+        </ul>
+      </section>
+    </aside>
+
+    <main aria-label="Interactive tree canvas">
+      <div class="canvas-shell">
+        <svg id="thought-map" role="img" aria-label="Tree-like board of connected ideas"></svg>
+      </div>
+      <div class="floating-tools" aria-label="View controls">
+        <button id="fit-map" title="Fit map to view">⛶</button>
+      </div>
+      <div class="zoom-tools" aria-label="Zoom controls">
+        <button id="zoom-out" title="Zoom out">−</button>
+        <button id="zoom-in" title="Zoom in">+</button>
+      </div>
+      <div class="status-pill" id="status">Start with “Core Idea”, then branch your thinking outward.</div>
+    </main>
+  </div>
+
+  <script>
+    const svg = document.querySelector("#thought-map");
+    const titleInput = document.querySelector("#node-title");
+    const noteInput = document.querySelector("#node-note");
+    const status = document.querySelector("#status");
+
+    const starterNodes = [
+      { id: "core", title: "Core Idea", note: "The problem or thesis", x: 560, y: 350, parent: null },
+      { id: "context", title: "Context", note: "What is already true?", x: 390, y: 230, parent: "core" },
+      { id: "goals", title: "Goals", note: "Desired outcomes", x: 760, y: 230, parent: "core" },
+      { id: "risks", title: "Risks", note: "What could fail?", x: 410, y: 510, parent: "core" },
+      { id: "next", title: "Next Move", note: "Smallest test", x: 760, y: 510, parent: "core" },
+      { id: "evidence", title: "Evidence", note: "Signals and facts", x: 230, y: 330, parent: "context" },
+      { id: "questions", title: "Questions", note: "Unknowns to resolve", x: 940, y: 360, parent: "goals" }
+    ];
+
+    let nodes = structuredClone(starterNodes);
+    let selectedId = "core";
+    let viewBox = { x: 0, y: 0, width: 1120, height: 720 };
+    let drag = null;
+
+    function selectedNode() {
+      return nodes.find((node) => node.id === selectedId) || nodes[0];
+    }
+
+    function childrenOf(nodeId) {
+      return nodes.filter((node) => node.parent === nodeId);
+    }
+
+    function setStatus(message) {
+      status.textContent = message;
+    }
+
+    function render() {
+      svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+      svg.innerHTML = "";
+
+      for (const node of nodes) {
+        if (!node.parent) continue;
+        const parent = nodes.find((candidate) => candidate.id === node.parent);
+        if (!parent) continue;
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.classList.add("link");
+        line.setAttribute("x1", parent.x);
+        line.setAttribute("y1", parent.y);
+        line.setAttribute("x2", node.x);
+        line.setAttribute("y2", node.y);
+        svg.append(line);
+      }
+
+      for (const node of nodes) {
+        const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        group.classList.add("node");
+        if (node.id === selectedId) group.classList.add("selected");
+        group.dataset.id = node.id;
+        group.setAttribute("transform", `translate(${node.x}, ${node.y})`);
+
+        const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        dot.classList.add("node-ring");
+        dot.setAttribute("r", node.id === "core" ? 17 : 14);
+        group.append(dot);
+
+        const title = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        title.setAttribute("text-anchor", "middle");
+        title.setAttribute("y", 42);
+        title.textContent = node.title;
+        group.append(title);
+
+        if (node.note) {
+          const note = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          note.classList.add("note");
+          note.setAttribute("text-anchor", "middle");
+          note.setAttribute("y", 61);
+          note.textContent = node.note;
+          group.append(note);
+        }
+
+        svg.append(group);
+      }
+
+      const current = selectedNode();
+      titleInput.value = current.title;
+      noteInput.value = current.note;
+    }
+
+    function selectNode(id) {
+      selectedId = id;
+      const node = selectedNode();
+      setStatus(`Editing “${node.title}”. Add a child when this thought needs a branch.`);
+      render();
+    }
+
+    function svgPoint(event) {
+      const point = svg.createSVGPoint();
+      point.x = event.clientX;
+      point.y = event.clientY;
+      return point.matrixTransform(svg.getScreenCTM().inverse());
+    }
+
+    function addNode(parentId, asSibling = false) {
+      const parent = asSibling ? nodes.find((node) => node.id === selectedNode().parent) || selectedNode() : selectedNode();
+      const siblings = childrenOf(parent.id);
+      const angle = (siblings.length / Math.max(1, siblings.length + 1)) * Math.PI * 1.6 - Math.PI * 0.8;
+      const radius = 150 + siblings.length * 16;
+      const node = {
+        id: `idea-${Date.now()}`,
+        title: asSibling ? "Related Idea" : "New Branch",
+        note: "Capture the insight",
+        x: parent.x + Math.cos(angle) * radius,
+        y: parent.y + Math.sin(angle) * radius,
+        parent: parent.id
+      };
+      nodes.push(node);
+      selectNode(node.id);
+    }
+
+    function deleteSelected() {
+      if (selectedId === "core") {
+        setStatus("The core idea stays as the root of the map.");
+        return;
+      }
+      const doomed = new Set([selectedId]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const node of nodes) {
+          if (node.parent && doomed.has(node.parent) && !doomed.has(node.id)) {
+            doomed.add(node.id);
+            changed = true;
+          }
+        }
+      }
+      const parent = selectedNode().parent || "core";
+      nodes = nodes.filter((node) => !doomed.has(node.id));
+      selectNode(parent);
+      setStatus("Deleted that branch and its descendants.");
+    }
+
+    function zoom(multiplier) {
+      const centerX = viewBox.x + viewBox.width / 2;
+      const centerY = viewBox.y + viewBox.height / 2;
+      viewBox.width *= multiplier;
+      viewBox.height *= multiplier;
+      viewBox.x = centerX - viewBox.width / 2;
+      viewBox.y = centerY - viewBox.height / 2;
+      render();
+    }
+
+    function fitMap() {
+      const padding = 180;
+      const xs = nodes.map((node) => node.x);
+      const ys = nodes.map((node) => node.y);
+      const minX = Math.min(...xs) - padding;
+      const maxX = Math.max(...xs) + padding;
+      const minY = Math.min(...ys) - padding;
+      const maxY = Math.max(...ys) + padding;
+      viewBox = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+      render();
+    }
+
+    svg.addEventListener("pointerdown", (event) => {
+      const group = event.target.closest(".node");
+      if (!group) return;
+      selectNode(group.dataset.id);
+      const point = svgPoint(event);
+      const node = selectedNode();
+      drag = { id: node.id, dx: node.x - point.x, dy: node.y - point.y };
+      svg.setPointerCapture(event.pointerId);
+    });
+
+    svg.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      const point = svgPoint(event);
+      const node = nodes.find((candidate) => candidate.id === drag.id);
+      node.x = point.x + drag.dx;
+      node.y = point.y + drag.dy;
+      render();
+    });
+
+    svg.addEventListener("pointerup", () => {
+      drag = null;
+    });
+
+    titleInput.addEventListener("input", () => {
+      selectedNode().title = titleInput.value || "Untitled";
+      render();
+    });
+
+    noteInput.addEventListener("input", () => {
+      selectedNode().note = noteInput.value;
+      render();
+    });
+
+    document.querySelector("#add-child").addEventListener("click", () => addNode(selectedId));
+    document.querySelector("#add-sibling").addEventListener("click", () => addNode(selectedId, true));
+    document.querySelector("#delete-node").addEventListener("click", deleteSelected);
+    document.querySelector("#reset-map").addEventListener("click", () => {
+      nodes = structuredClone(starterNodes);
+      selectedId = "core";
+      viewBox = { x: 0, y: 0, width: 1120, height: 720 };
+      setStatus("Reset to the starter tree.");
+      render();
+    });
+    document.querySelector("#zoom-out").addEventListener("click", () => zoom(1.15));
+    document.querySelector("#zoom-in").addEventListener("click", () => zoom(0.85));
+    document.querySelector("#fit-map").addEventListener("click", fitMap);
+
+    render();
+  </script>
+</body>
+</html>
